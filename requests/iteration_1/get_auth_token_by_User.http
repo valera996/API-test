@@ -1,0 +1,10 @@
+### get auth token by User
+POST http://localhost:4111/api/v1/auth/login
+accept: */*
+Content-Type: application/json
+
+{
+  "username": "{{existing_username}}",
+  "password": "{{existing_password}}"
+}
+

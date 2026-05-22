@@ -1,0 +1,11 @@
+### Negative case: Deposit money 5000
+POST http://localhost:4111/api/v1/accounts/deposit
+accept: */*
+Content-Type: application/json
+Authorization: Basic e3tleGlzdGluZ191c2VybmFtZX19Ont7ZXhpc3RpbmdfcGFzc3dvcmR9fQ==
+
+{
+  "id": {{account_id}},
+  "balance": 5000
+}
+
