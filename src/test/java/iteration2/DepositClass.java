@@ -6,7 +6,7 @@ import org.apache.http.HttpStatus;
 import static io.restassured.RestAssured.given;
 
 public class DepositClass {
-    //Депосит денег на созданный аккаунт
+    //Депозит денег на созданный аккаунт
    public static void depositMoneyToAccount(double amount, int accountId, String userAuthToken) {
        String requestBody = String.format("""
                  {
@@ -24,4 +24,6 @@ public class DepositClass {
                .assertThat()
                .statusCode(HttpStatus.SC_OK);
    }
+
+
 }

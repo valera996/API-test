@@ -14,7 +14,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.List;
 import java.util.stream.Stream;
 import static io.restassured.RestAssured.given;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class DepositMoneyTest {
     @BeforeAll
@@ -65,6 +65,10 @@ public class DepositMoneyTest {
 
         //Депосит денег на созданный аккаунт
         DepositClass.depositMoneyToAccount(amount, accountId, userAuthToken);
+
+        //Проверка поступления денег на счёт
+        double actualBalance = ProfileInfoClass.returnUserBalance(userAuthToken);
+        assertEquals(amount,actualBalance);
     }
     public static Stream<Arguments> invalidAmount(){
         return Stream.of(
@@ -129,7 +133,12 @@ public class DepositMoneyTest {
                 .assertThat()
                 .statusCode(HttpStatus.SC_BAD_REQUEST)
                 .body(Matchers.equalTo(errorValue));
+
+        //Проверка, что на счёт денеги не поступили
+        double actualBalance = ProfileInfoClass.returnUserBalance(userAuthToken);
+        assertEquals(0,actualBalance);
     }
+
 
     @Test
     public void depositMoneyToAnotherPersonAccountTest(){
@@ -166,23 +175,60 @@ public class DepositMoneyTest {
                 .statusCode(HttpStatus.SC_OK)
                 .extract()
                 .header("Authorization");
+        //Создание нового юзера и аккаунта
+        String newUserName = DataClass.randomUserName();
+        given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .header("Authorization", "Basic YWRtaW46YWRtaW4=")
+                .body(String.format("""
+                        {
+                         "username": "%s",
+                         "password": "Kate2000#",
+                         "role": "USER"
+                        }
+                        """, newUserName))
+                .post("http://localhost:4111/api/v1/admin/users")
+                .then()
+                .assertThat()
+                .statusCode(HttpStatus.SC_CREATED);
+        String newUserAuthToken = given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(String.format("""
+                        {
+                          "username": "%s",
+                          "password": "Kate2000#"
+                        }
+                        """, newUserName))
+                .post("http://localhost:4111/api/v1/auth/login")
+                .then()
+                .assertThat()
+                .statusCode(HttpStatus.SC_OK)
+                .extract()
+                .header("Authorization");
+        int newUserAccountId = AccountClass.createAccountAndGetAccountId(newUserAuthToken);
 
         //Депосит денег на чужой аккаунт
         given()
                 .contentType(ContentType.JSON)
                 .accept(ContentType.JSON)
                 .header("Authorization", userAuthToken)
-                .body("""
+                .body(String.format("""
                   {
-                          "id": 1,
+                          "id": %s,
                           "balance": 300
                         }
-                """)
+                """,newUserAccountId ))
                 .post("http://localhost:4111/api/v1/accounts/deposit")
                 .then()
                 .assertThat()
                 .statusCode(HttpStatus.SC_FORBIDDEN)
                 .body(Matchers.equalTo("Unauthorized access to account"));
+
+        //Проверка, что на чужой счёт денеги не поступили
+        double actualBalance = ProfileInfoClass.returnUserBalance(newUserAuthToken);
+        assertEquals(0,actualBalance);
     }
     @Test
     public void depositMoneyToNonexistentPersonAccountTest(){

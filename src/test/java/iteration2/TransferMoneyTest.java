@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static io.restassured.RestAssured.given;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TransferMoneyTest {
     @BeforeAll
@@ -66,14 +67,48 @@ public class TransferMoneyTest {
         DepositClass.depositMoneyToAccount(5000, accountId, userAuthToken);
         DepositClass.depositMoneyToAccount(5000, accountId, userAuthToken);
 
+        //Создание нового юзера и аккаунта
+        String newUserName = DataClass.randomUserName();
+        given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .header("Authorization", "Basic YWRtaW46YWRtaW4=")
+                .body(String.format("""
+                        {
+                         "username": "%s",
+                         "password": "Kate2000#",
+                         "role": "USER"
+                        }
+                        """, newUserName))
+                .post("http://localhost:4111/api/v1/admin/users")
+                .then()
+                .assertThat()
+                .statusCode(HttpStatus.SC_CREATED);
+        String newUserAuthToken = given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(String.format("""
+                        {
+                          "username": "%s",
+                          "password": "Kate2000#"
+                        }
+                        """, newUserName))
+                .post("http://localhost:4111/api/v1/auth/login")
+                .then()
+                .assertThat()
+                .statusCode(HttpStatus.SC_OK)
+                .extract()
+                .header("Authorization");
+        int newUserAccountId = AccountClass.createAccountAndGetAccountId(newUserAuthToken);
+
         //Перевод денег на чужой аккаунт
         String requestBodyToTransfer = String.format("""
                   {
                         "senderAccountId": %s,
-                        "receiverAccountId": 1,
+                        "receiverAccountId": %s,
                         "amount": %s
                         }
-                """,accountId, amount);
+                """,accountId, newUserAccountId, amount);
         given()
                 .contentType(ContentType.JSON)
                 .accept(ContentType.JSON)
@@ -84,6 +119,12 @@ public class TransferMoneyTest {
                 .assertThat()
                 .statusCode(HttpStatus.SC_OK)
                 .body("message", Matchers.equalTo("Transfer successful"));
+
+        //Проверка, что на чужой счёт денеги поступили
+        double actualBalance = ProfileInfoClass.returnUserBalance(newUserAuthToken);
+        assertEquals(amount,actualBalance,0.01);
+        //Проверка, что с текущего счета деньги списались
+        assertEquals(10000.00 - amount, ProfileInfoClass.returnUserBalance(userAuthToken),0.01);
     }
 
     @ParameterizedTest
@@ -149,6 +190,12 @@ public class TransferMoneyTest {
                 .assertThat()
                 .statusCode(HttpStatus.SC_OK)
                 .body("message", Matchers.equalTo("Transfer successful"));
+
+        //Проверка, что на другой счёт денеги поступили
+        double actualBalance = AccountClass.getAccountBalanceById(userAuthToken, anotherAccountId);
+        assertEquals(amount,actualBalance, 0.01);
+        //Проверка, что с текущего счета деньги списались
+        assertEquals(10000.00 - amount, AccountClass.getAccountBalanceById(userAuthToken, accountId),0.01);
     }
 
     public static Stream<Arguments> invalidAmount(){
@@ -196,14 +243,48 @@ public class TransferMoneyTest {
 
         int accountId = AccountClass.createAccountAndGetAccountId(userAuthToken);
 
+        //Создание нового юзера и аккаунта
+        String newUserName = DataClass.randomUserName();
+        given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .header("Authorization", "Basic YWRtaW46YWRtaW4=")
+                .body(String.format("""
+                        {
+                         "username": "%s",
+                         "password": "Kate2000#",
+                         "role": "USER"
+                        }
+                        """, newUserName))
+                .post("http://localhost:4111/api/v1/admin/users")
+                .then()
+                .assertThat()
+                .statusCode(HttpStatus.SC_CREATED);
+        String newUserAuthToken = given()
+                .contentType(ContentType.JSON)
+                .accept(ContentType.JSON)
+                .body(String.format("""
+                        {
+                          "username": "%s",
+                          "password": "Kate2000#"
+                        }
+                        """, newUserName))
+                .post("http://localhost:4111/api/v1/auth/login")
+                .then()
+                .assertThat()
+                .statusCode(HttpStatus.SC_OK)
+                .extract()
+                .header("Authorization");
+        int newUserAccountId = AccountClass.createAccountAndGetAccountId(newUserAuthToken);
+
         //Перевод денег на чужой аккаунт
         String requestBodyToTransfer = String.format("""
                   {
                         "senderAccountId": %s,
-                        "receiverAccountId": 1,
+                        "receiverAccountId": %s,
                         "amount": %s
                         }
-                """,accountId, amount);
+                """,accountId, newUserAccountId, amount);
         given()
                 .contentType(ContentType.JSON)
                 .accept(ContentType.JSON)
@@ -214,6 +295,12 @@ public class TransferMoneyTest {
                 .assertThat()
                 .statusCode(HttpStatus.SC_BAD_REQUEST)
                 .body(Matchers.equalTo(errorValue));
+
+        //Проверка, что на чужой счёт денеги не поступили
+        double actualBalance = ProfileInfoClass.returnUserBalance(newUserAuthToken);
+        assertEquals(0.00,actualBalance,0.01);
+        //Проверка, что с текущего счета деньги не списались
+        assertEquals(0.00, ProfileInfoClass.returnUserBalance(userAuthToken),0.01);
     }
 
     @MethodSource("invalidAmount")
@@ -275,6 +362,12 @@ public class TransferMoneyTest {
                 .assertThat()
                 .statusCode(HttpStatus.SC_BAD_REQUEST)
                 .body(Matchers.equalTo(errorValue));
+
+        //Проверка, что на другой счёт денеги не поступили
+        double actualBalance = AccountClass.getAccountBalanceById(userAuthToken, anotherAccountId);
+        assertEquals(0.00,actualBalance, 0.01);
+        //Проверка, что с текущего счета деньги списались
+        assertEquals(0.00, AccountClass.getAccountBalanceById(userAuthToken, accountId),0.01);
     }
 
    @Test
@@ -315,14 +408,48 @@ public class TransferMoneyTest {
 
         int accountId = AccountClass.createAccountAndGetAccountId(userAuthToken);
 
-        //Перевод денег на чужой аккаунт
+       //Создание нового юзера и аккаунта
+       String newUserName = DataClass.randomUserName();
+       given()
+               .contentType(ContentType.JSON)
+               .accept(ContentType.JSON)
+               .header("Authorization", "Basic YWRtaW46YWRtaW4=")
+               .body(String.format("""
+                        {
+                         "username": "%s",
+                         "password": "Kate2000#",
+                         "role": "USER"
+                        }
+                        """, newUserName))
+               .post("http://localhost:4111/api/v1/admin/users")
+               .then()
+               .assertThat()
+               .statusCode(HttpStatus.SC_CREATED);
+       String newUserAuthToken = given()
+               .contentType(ContentType.JSON)
+               .accept(ContentType.JSON)
+               .body(String.format("""
+                        {
+                          "username": "%s",
+                          "password": "Kate2000#"
+                        }
+                        """, newUserName))
+               .post("http://localhost:4111/api/v1/auth/login")
+               .then()
+               .assertThat()
+               .statusCode(HttpStatus.SC_OK)
+               .extract()
+               .header("Authorization");
+       int newUserAccountId = AccountClass.createAccountAndGetAccountId(newUserAuthToken);
+
+       //Перевод денег на чужой аккаунт
         String requestBodyToTransfer = String.format("""
                   {
                         "senderAccountId": %s,
-                        "receiverAccountId": 1,
+                        "receiverAccountId": %s,
                         "amount": 1000
                         }
-                """,accountId);
+                """,accountId, newUserAccountId);
         given()
                 .contentType(ContentType.JSON)
                 .accept(ContentType.JSON)
@@ -333,6 +460,13 @@ public class TransferMoneyTest {
                 .assertThat()
                 .statusCode(HttpStatus.SC_BAD_REQUEST)
                 .body(Matchers.equalTo("Invalid transfer: insufficient funds or invalid accounts"));
+
+       //Проверка, что на чужой счёт денеги не поступили
+       double actualBalance = AccountClass.getAccountBalanceById(userAuthToken, newUserAccountId);
+       assertEquals(0.00,actualBalance, 0.01);
+       //Проверка, что с текущего счета деньги списались
+       assertEquals(0.00, AccountClass.getAccountBalanceById(userAuthToken, accountId),0.01);
+
     }
 
     @Test
@@ -393,5 +527,11 @@ public class TransferMoneyTest {
                 .assertThat()
                 .statusCode(HttpStatus.SC_BAD_REQUEST)
                 .body(Matchers.equalTo("Invalid transfer: insufficient funds or invalid accounts"));
+
+        //Проверка, что на другой счёт денеги не поступили
+        double actualBalance = AccountClass.getAccountBalanceById(userAuthToken, anotherAccountId);
+        assertEquals(0.00,actualBalance, 0.01);
+        //Проверка, что с текущего счета деньги списались
+        assertEquals(0.00, AccountClass.getAccountBalanceById(userAuthToken, accountId),0.01);
     }
 }

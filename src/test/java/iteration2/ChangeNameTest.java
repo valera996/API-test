@@ -14,7 +14,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 import java.util.stream.Stream;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static io.restassured.RestAssured.given;
 
 public class ChangeNameTest {
@@ -74,6 +74,9 @@ public class ChangeNameTest {
                 .then()
                 .statusCode(HttpStatus.SC_OK)
                 .body("message", Matchers.equalTo("Profile updated successfully"));
+
+        String actualName = ProfileInfoClass.returnUserName(userAuthToken);
+        assertEquals("Kate Smith", actualName);
     }
 
 
@@ -127,6 +130,9 @@ public class ChangeNameTest {
                 .then()
                 .statusCode(HttpStatus.SC_BAD_REQUEST)
                 .body(Matchers.equalTo("Name must contain two words with letters only"));
+
+        String actualName = ProfileInfoClass.returnUserName(userAuthToken);
+        assertEquals(null, actualName);
     }
 
 }
