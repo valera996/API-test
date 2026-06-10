@@ -1,0 +1,5 @@
+### Authorised user can create accaunt
+POST http://localhost:4111/api/v1/accounts
+Authorization: Basic e3tleGlzdGluZ191c2VybmFtZX19Ont7ZXhpc3RpbmdfcGFzc3dvcmR9fQ==
+
+
