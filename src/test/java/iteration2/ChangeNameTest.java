@@ -1,138 +1,72 @@
 package iteration2;
 
-import io.restassured.RestAssured;
-import io.restassured.filter.log.ResponseLoggingFilter;
-import io.restassured.http.ContentType;
-import org.apache.http.HttpStatus;
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.BeforeAll;
+import Specs.RequestSpecs;
+import Specs.ResponseSpecs;
+import generators.RandomData;
+import iteration1.BaseTest;
+import models.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import requests.AdminCreateUserRequester;
+import requests.ChangeUserNameRequester;
 
-import java.util.List;
-import java.util.stream.Stream;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static io.restassured.RestAssured.given;
 
-public class ChangeNameTest {
-    @BeforeAll
-    public static void setupRestAssured() {
-        RestAssured.filters(
-                List.of(new ResponseLoggingFilter(),
-                        new ResponseLoggingFilter()));
-    }
+public class ChangeNameTest extends BaseTest {
 
     @Test
     public void changeNameWithValidWord(){
-        String userName = DataClass.randomUserName();
-        //Создание пользователя
-        given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .header("Authorization", "Basic YWRtaW46YWRtaW4=")
-                .body(String.format("""
-                        {
-                         "username": "%s",
-                         "password": "Kate2000#",
-                         "role": "USER"
-                        }
-                        """, userName))
-                .post("http://localhost:4111/api/v1/admin/users")
-                .then()
-                .assertThat()
-                .statusCode(HttpStatus.SC_CREATED);
-        //Получение токена юзера
-        String userAuthToken = given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .body(String.format("""
-                        {
-                          "username": "%s",
-                          "password": "Kate2000#"
-                        }
-                        """, userName))
-                .post("http://localhost:4111/api/v1/auth/login")
-                .then()
-                .assertThat()
-                .statusCode(HttpStatus.SC_OK)
-                .extract()
-                .header("Authorization");
 
-        given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .header("Authorization", userAuthToken)
-                .body("""
-                        {
-                          "name": "Kate Smith"
-                        }
-                        """)
-                .put("http://localhost:4111/api/v1/customer/profile")
-                .then()
-                .statusCode(HttpStatus.SC_OK)
-                .body("message", Matchers.equalTo("Profile updated successfully"));
+        CreateUserRequest createUserRequest = CreateUserRequest.builder()
+                .username(RandomData.getUserName())
+                .password(RandomData.getUserPassword())
+                .role(UserRole.USER.toString())
+                .build();
 
-        String actualName = ProfileInfoClass.returnUserName(userAuthToken);
-        assertEquals("Kate Smith", actualName);
+        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
+                .post(createUserRequest);
+
+
+        ChangeUserNameRequest changeUserNameRequest = ChangeUserNameRequest.builder()
+                .name(RandomData.getDoubleName())
+                .build();
+
+        new ChangeUserNameRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), ResponseSpecs.userNameWasChanged())
+                .put(changeUserNameRequest);
+
+
+        GetUserProfileResponse actualName = new ChangeUserNameRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+                .get(null).extract().as(GetUserProfileResponse.class);
+
+        softly.assertThat(changeUserNameRequest.getName()).isEqualTo(actualName.getName());
     }
 
 
     @ParameterizedTest
     @ValueSource(strings = {"Kate1 Smith", "Kate", "Kate Ivanovna Smith"})
     public void changeNameWithInvalidWord(String newName){
-        String userName = DataClass.randomUserName();
-        //Создание пользователя
-        given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .header("Authorization", "Basic YWRtaW46YWRtaW4=")
-                .body(String.format("""
-                        {
-                         "username": "%s",
-                         "password": "Kate2000#",
-                         "role": "USER"
-                        }
-                        """, userName))
-                .post("http://localhost:4111/api/v1/admin/users")
-                .then()
-                .assertThat()
-                .statusCode(HttpStatus.SC_CREATED);
-        //Получение токена юзера
-        String userAuthToken = given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .body(String.format("""
-                        {
-                          "username": "%s",
-                          "password": "Kate2000#"
-                        }
-                        """, userName))
-                .post("http://localhost:4111/api/v1/auth/login")
-                .then()
-                .assertThat()
-                .statusCode(HttpStatus.SC_OK)
-                .extract()
-                .header("Authorization");
 
-        given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .header("Authorization", userAuthToken)
-                .body(String.format("""
-                        {
-                          "name": "%s"
-                        }
-                        """,newName))
-                .put("http://localhost:4111/api/v1/customer/profile")
-                .then()
-                .statusCode(HttpStatus.SC_BAD_REQUEST)
-                .body(Matchers.equalTo("Name must contain two words with letters only"));
+        CreateUserRequest createUserRequest = CreateUserRequest.builder()
+                .username(RandomData.getUserName())
+                .password(RandomData.getUserPassword())
+                .role(UserRole.USER.toString())
+                .build();
 
-        String actualName = ProfileInfoClass.returnUserName(userAuthToken);
-        assertEquals(null, actualName);
+       CreateUserResponse createUserResponse= new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
+                .post(createUserRequest).extract().as(CreateUserResponse.class);
+
+        ChangeUserNameRequest changeUserNameRequest = ChangeUserNameRequest.builder()
+                .name(newName)
+                .build();
+
+        new ChangeUserNameRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), ResponseSpecs.changeUserNameReturnsBadRequest())
+                .put(changeUserNameRequest);
+
+
+        GetUserProfileResponse actualName = new ChangeUserNameRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+                .get(null).extract().as(GetUserProfileResponse.class);
+
+        softly.assertThat(createUserResponse.getName()).isEqualTo(actualName.getName());
     }
 
 }

@@ -1,69 +1,43 @@
 package iteration1;
 
-import io.restassured.RestAssured;
-import io.restassured.filter.log.ResponseLoggingFilter;
-import io.restassured.http.ContentType;
-import org.apache.http.HttpStatus;
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.BeforeAll;
+import Specs.RequestSpecs;
+import Specs.ResponseSpecs;
+import generators.RandomData;
+import models.CreateUserRequest;
+import models.GetAccountResponse;
+import models.UserRole;
 import org.junit.jupiter.api.Test;
+import requests.AdminCreateUserRequester;
+import requests.CreateAccountRequester;
+import requests.GetUserAccountRequester;
 
-import java.util.List;
 
-import static io.restassured.RestAssured.given;
-
-public class CreateAccountTest {
-
-    @BeforeAll
-    public static void setupRestAssured() {
-        RestAssured.filters(
-                List.of(new ResponseLoggingFilter(),
-                        new ResponseLoggingFilter()));
-    }
+public class CreateAccountTest extends BaseTest{
 
     @Test
     public void userCanCreateAccountTest(){
-        given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .header("Authorization", "Basic YWRtaW46YWRtaW4=")
-                .body("""
-                        {
-                         "username": "kate3012",
-                         "password": "Kate2000#",
-                         "role": "USER"
-                        }
-                        """)
-                .post("http://localhost:4111/api/v1/admin/users")
-                .then()
-                .assertThat()
-                .statusCode(HttpStatus.SC_CREATED);
-        //Получаем токен
-        String userAuthToken = given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .body("""
-                        {
-                          "username": "kate3012",
-                          "password": "Kate2000#"
-                        }
-                        """)
-                .post("http://localhost:4111/api/v1/auth/login")
-                .then()
-                .assertThat()
-                .statusCode(HttpStatus.SC_OK)
-                .extract()
-                .header("Authorization");
 
-        //Создаём аккаунт(счёт)
-        given()
-                .contentType(ContentType.JSON)
-                .accept(ContentType.JSON)
-                .header("Authorization", userAuthToken)
-                .post("http://localhost:4111/api/v1/accounts")
-                .then()
-                .assertThat()
-                .statusCode(HttpStatus.SC_CREATED);
+        CreateUserRequest createUserRequest = CreateUserRequest.builder()
+                .username(RandomData.getUserName())
+                .password(RandomData.getUserPassword())
+                .role(UserRole.USER.toString())
+                .build();
+
+        new AdminCreateUserRequester(RequestSpecs.adminSpec(),
+                ResponseSpecs.entityWasCreated())
+                .post( createUserRequest );
+
+        String accountNumber = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+                .post( null)
+               .extract()
+               .path("accountNumber");
+
+        //Запросить все аккаунты пользователя и проверить, что созданный аккаунт там
+        GetAccountResponse[] getAccountResponse = new GetUserAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+                .get(null)
+                .extract().as(GetAccountResponse[].class);
+
+        softly.assertThat(getAccountResponse[0].getAccountNumber()).isEqualTo(accountNumber);
 
     }
 }
