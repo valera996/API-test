@@ -1,0 +1,12 @@
+### Positive case: Transfer money 0.01 from one account to another account with the another owner
+POST http://localhost:4111/api/v1/accounts/transfer
+accept: */*
+Content-Type: application/json
+Authorization: Basic e3tleGlzdGluZ191c2VybmFtZX19Ont7ZXhpc3RpbmdfcGFzc3dvcmR9fQ==
+
+{
+  "senderAccountId": {{account_id}},
+  "receiverAccountId": 3,
+  "amount": 0.01 
+}
+
