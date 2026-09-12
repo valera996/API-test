@@ -15,10 +15,19 @@ public abstract class Request<T extends BaseModel> {
     }
 
     public abstract ValidatableResponse post(T model);
+    public ValidatableResponse post(){
+        return post(null);
+    }
 
     public abstract ValidatableResponse get(T model);
+    public ValidatableResponse get(){
+        return  get(null);
+    }
 
     public abstract ValidatableResponse put(T model);
+    public ValidatableResponse put(){
+        return put(null);
+    }
 
 
 }

@@ -10,4 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CreateAccountResponse {
     int id;
+    String accountNumber;
+    double balance;
+    int[] transactions;
 }

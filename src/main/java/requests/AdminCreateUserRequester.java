@@ -3,7 +3,6 @@ package requests;
 import io.restassured.response.ValidatableResponse;
 import io.restassured.specification.RequestSpecification;
 import io.restassured.specification.ResponseSpecification;
-import models.BaseModel;
 import models.CreateUserRequest;
 
 import static io.restassured.RestAssured.given;
@@ -26,8 +25,12 @@ public class AdminCreateUserRequester extends Request<CreateUserRequest>{
 
     @Override
     public ValidatableResponse get(CreateUserRequest model) {
-        // TODO: реализовать метод на беке
-        return null;
+        return given()
+                .spec(requestSpecification)
+                .when()
+                .get("/api/v1/admin/users")
+                .then()
+                .spec(responseSpecification);
     }
 
     @Override

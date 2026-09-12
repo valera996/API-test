@@ -36,7 +36,7 @@ public class ChangeNameTest extends BaseTest {
 
 
         GetUserProfileResponse actualName = new ChangeUserNameRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
-                .get(null).extract().as(GetUserProfileResponse.class);
+                .get().extract().as(GetUserProfileResponse.class);
 
         softly.assertThat(changeUserNameRequest.getName()).isEqualTo(actualName.getName());
     }
@@ -64,7 +64,7 @@ public class ChangeNameTest extends BaseTest {
 
 
         GetUserProfileResponse actualName = new ChangeUserNameRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
-                .get(null).extract().as(GetUserProfileResponse.class);
+                .get().extract().as(GetUserProfileResponse.class);
 
         softly.assertThat(createUserResponse.getName()).isEqualTo(actualName.getName());
     }

@@ -3,6 +3,7 @@ package iteration1;
 import Specs.RequestSpecs;
 import Specs.ResponseSpecs;
 import generators.RandomData;
+import models.CreateAccountResponse;
 import models.CreateUserRequest;
 import models.GetAccountResponse;
 import models.UserRole;
@@ -12,10 +13,10 @@ import requests.CreateAccountRequester;
 import requests.GetUserAccountRequester;
 
 
-public class CreateAccountTest extends BaseTest{
+public class CreateAccountTest extends BaseTest {
 
     @Test
-    public void userCanCreateAccountTest(){
+    public void userCanCreateAccountTest() {
 
         CreateUserRequest createUserRequest = CreateUserRequest.builder()
                 .username(RandomData.getUserName())
@@ -25,19 +26,18 @@ public class CreateAccountTest extends BaseTest{
 
         new AdminCreateUserRequester(RequestSpecs.adminSpec(),
                 ResponseSpecs.entityWasCreated())
-                .post( createUserRequest );
+                .post(createUserRequest);
 
         String accountNumber = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
-                .post( null)
-               .extract()
-               .path("accountNumber");
+                .post()
+                .extract()
+                .as(CreateAccountResponse.class)
+                .getAccountNumber();
 
         //Запросить все аккаунты пользователя и проверить, что созданный аккаунт там
         GetAccountResponse[] getAccountResponse = new GetUserAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
-                .get(null)
+                .get()
                 .extract().as(GetAccountResponse[].class);
-
         softly.assertThat(getAccountResponse[0].getAccountNumber()).isEqualTo(accountNumber);
-
     }
 }

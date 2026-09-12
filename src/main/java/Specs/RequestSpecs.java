@@ -10,6 +10,8 @@ import requests.LoginUserRequester;
 import java.util.List;
 
 public class RequestSpecs {
+    public static final String AUTHORIZATION_HEADER = "Authorization";
+
     private RequestSpecs(){}
 
     private static RequestSpecBuilder defaultRequestBuilder(){
@@ -27,7 +29,7 @@ public class RequestSpecs {
 
     public static RequestSpecification adminSpec(){
         return defaultRequestBuilder()
-                .addHeader("Authorization", "Basic YWRtaW46YWRtaW4=")
+                .addHeader(AUTHORIZATION_HEADER, "Basic YWRtaW46YWRtaW4=")
                 .build();
     }
 
@@ -35,10 +37,10 @@ public class RequestSpecs {
         String userAuthToken = new LoginUserRequester(RequestSpecs.unauthSpec(), ResponseSpecs.requestReturnsOk())
                 .post(LoginUserRequest.builder().username(userName).password(password).build())
                 .extract()
-                .header("Authorization");
+                .header(AUTHORIZATION_HEADER);
 
         return defaultRequestBuilder()
-                .addHeader("Authorization",userAuthToken)
+                .addHeader(AUTHORIZATION_HEADER,userAuthToken)
                 .build();
     }
 }

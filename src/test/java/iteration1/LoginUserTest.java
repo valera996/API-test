@@ -41,10 +41,8 @@ public class LoginUserTest {
                 .build();
 
         new LoginUserRequester(RequestSpecs.unauthSpec(),ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder().username(createUserRequest.getUsername()).password(createUserRequest.getPassword()).build())
-                .header("Authorization", Matchers.notNullValue());
-
-
+                .post(userRequest)
+                .header(RequestSpecs.AUTHORIZATION_HEADER, Matchers.notNullValue());
     }
 
 }
