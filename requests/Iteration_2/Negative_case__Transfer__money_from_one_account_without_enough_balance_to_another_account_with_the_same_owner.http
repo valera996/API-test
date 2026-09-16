@@ -1,0 +1,12 @@
+### Negative case: Transfer  money from one account without enough balance to another account with the same owner
+POST http://localhost:4111/api/v1/accounts/transfer
+accept: */*
+Content-Type: application/json
+Authorization: Basic e3tleGlzdGluZ191c2VybmFtZX19Ont7ZXhpc3RpbmdfcGFzc3dvcmR9fQ==
+
+{
+  "senderAccountId": {{account_id}},
+  "receiverAccountId": 7,
+  "amount": 10000
+}
+

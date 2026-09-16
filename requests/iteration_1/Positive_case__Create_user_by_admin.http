@@ -1,0 +1,12 @@
+### Positive case: Create user by admin
+POST http://localhost:4111/api/v1/admin/users
+Authorization: 
+Authorization: Basic YWRtaW46YWRtaW4=
+Content-Type: application/json
+
+{
+  "username": "test{{$timestamp}}",
+  "password": "verysTRongPassword33$",
+  "role": "USER"
+}
+

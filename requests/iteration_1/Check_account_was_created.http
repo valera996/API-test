@@ -1,0 +1,5 @@
+### Check account was created
+GET http://localhost:4111/api/v1/customer/accounts
+Authorization: Basic e3tleGlzdGluZ191c2VybmFtZX19Ont7ZXhpc3RpbmdfcGFzc3dvcmR9fQ==
+
+

@@ -1,0 +1,12 @@
+### Negative case: Create user that already exist
+POST http://localhost:4111/api/v1/admin/users
+Authorization: 
+Authorization: Basic YWRtaW46YWRtaW4=
+Content-Type: application/json
+
+{
+  "username": "{{existing_username}}",
+  "password": "verysTRongPassword33$",
+  "role": "USER"
+}
+

@@ -1,0 +1,10 @@
+### Positive case: Change name
+PUT http://localhost:4111/api/v1/customer/profile
+accept: */*
+Content-Type: application/json
+Authorization: Basic e3tleGlzdGluZ191c2VybmFtZX19Ont7ZXhpc3RpbmdfcGFzc3dvcmR9fQ==
+
+{
+  "name": "Kate Smith"
+}
+
