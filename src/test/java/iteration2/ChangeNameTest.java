@@ -2,40 +2,30 @@ package iteration2;
 
 import Specs.RequestSpecs;
 import Specs.ResponseSpecs;
-import generators.RandomData;
+import generators.RandomModelGenerator;
 import iteration1.BaseTest;
 import models.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import requests.AdminCreateUserRequester;
-import requests.ChangeUserNameRequester;
-
+import requests.skeleton.Endpoint;
+import requests.skeleton.requesters.CrudRequester;
+import requests.steps.AdminSteps;
 
 public class ChangeNameTest extends BaseTest {
 
     @Test
     public void changeNameWithValidWord(){
 
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
 
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
+        ChangeUserNameRequest changeUserNameRequest = RandomModelGenerator.generate(ChangeUserNameRequest.class);
+
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.userNameWasChanged())
+                .update(changeUserNameRequest);
 
 
-        ChangeUserNameRequest changeUserNameRequest = ChangeUserNameRequest.builder()
-                .name(RandomData.getDoubleName())
-                .build();
-
-        new ChangeUserNameRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), ResponseSpecs.userNameWasChanged())
-                .put(changeUserNameRequest);
-
-
-        GetUserProfileResponse actualName = new ChangeUserNameRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        GetUserProfileResponse actualName = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get().extract().as(GetUserProfileResponse.class);
 
         softly.assertThat(changeUserNameRequest.getName()).isEqualTo(actualName.getName());
@@ -46,24 +36,20 @@ public class ChangeNameTest extends BaseTest {
     @ValueSource(strings = {"Kate1 Smith", "Kate", "Kate Ivanovna Smith"})
     public void changeNameWithInvalidWord(String newName){
 
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
+        CreateUserRequest createUserRequest = RandomModelGenerator.generate(CreateUserRequest.class);
 
-       CreateUserResponse createUserResponse= new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
+       CreateUserResponse createUserResponse = new CrudRequester(RequestSpecs.adminSpec(),Endpoint.ADMIN_USER, ResponseSpecs.entityWasCreated())
                 .post(createUserRequest).extract().as(CreateUserResponse.class);
 
         ChangeUserNameRequest changeUserNameRequest = ChangeUserNameRequest.builder()
                 .name(newName)
                 .build();
 
-        new ChangeUserNameRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), ResponseSpecs.changeUserNameReturnsBadRequest())
-                .put(changeUserNameRequest);
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.changeUserNameReturnsBadRequest())
+                .update(changeUserNameRequest);
 
 
-        GetUserProfileResponse actualName = new ChangeUserNameRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        GetUserProfileResponse actualName = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(),createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get().extract().as(GetUserProfileResponse.class);
 
         softly.assertThat(createUserResponse.getName()).isEqualTo(actualName.getName());
