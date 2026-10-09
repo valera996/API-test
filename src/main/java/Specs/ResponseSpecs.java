@@ -1,7 +1,6 @@
 package Specs;
 
 import io.restassured.builder.ResponseSpecBuilder;
-import io.restassured.response.Response;
 import io.restassured.specification.ResponseSpecification;
 import org.apache.http.HttpStatus;
 import org.hamcrest.Matchers;
