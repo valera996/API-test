@@ -1,4 +1,4 @@
-package iteration1;
+package iteration1.api;
 
 import Specs.RequestSpecs;
 import Specs.ResponseSpecs;
