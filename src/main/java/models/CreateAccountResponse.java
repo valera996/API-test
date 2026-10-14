@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class CreateAccountResponse {
+public class CreateAccountResponse extends BaseModel {
     int id;
     String accountNumber;
     double balance;
