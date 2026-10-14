@@ -2,6 +2,7 @@ package iteration2;
 
 import Specs.RequestSpecs;
 import Specs.ResponseSpecs;
+import generators.RandomData;
 import iteration1.BaseTest;
 import models.*;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ public class DepositMoneyTest extends BaseTest {
         CreateUserRequest createUserRequest = AdminSteps.createUser();
 
         int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -59,7 +60,7 @@ public class DepositMoneyTest extends BaseTest {
         CreateUserRequest createUserRequest = AdminSteps.createUser();
 
         int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -87,19 +88,19 @@ public class DepositMoneyTest extends BaseTest {
         CreateUserRequest createUserRequest = AdminSteps.createUser();
 
         new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null);
+                .post();
 
         CreateUserRequest createNewUserRequest = AdminSteps.createUser();
 
         int newUserAccountId = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
 
         DepositMoneyToAccountRequest depositMoneyToAccountRequest = DepositMoneyToAccountRequest.builder()
                 .id(newUserAccountId)
-                .balance(300)
+                .balance(RandomData.getRandomAmount(0.01, 5000.00))
                 .build();
 
         new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.depositMoneyToAnotherAccount())
@@ -121,10 +122,22 @@ public class DepositMoneyTest extends BaseTest {
 
         DepositMoneyToAccountRequest depositMoneyToAccountRequest = DepositMoneyToAccountRequest.builder()
                 .id(Integer.MAX_VALUE)
-                .balance(300)
+                .balance(RandomData.getRandomAmount(0.01, 5000.00))
                 .build();
 
         new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.depositMoneyToAnotherAccount())
                 .post(depositMoneyToAccountRequest);
+
+        GetUserProfileResponse profile = new CrudRequester(
+                RequestSpecs.authAsUser(
+                        createUserRequest.getUsername(),
+                        createUserRequest.getPassword()),
+                Endpoint.CUSTOMER_PROFILE,
+                ResponseSpecs.requestReturnsOk())
+                .get()
+                .extract()
+                .as(GetUserProfileResponse.class);
+
+        softly.assertThat(profile.getAccounts()).isEmpty();
     }
 }

@@ -2,6 +2,7 @@ package iteration2;
 
 import Specs.RequestSpecs;
 import Specs.ResponseSpecs;
+import generators.RandomData;
 import iteration1.BaseTest;
 import models.*;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,7 @@ public class TransferMoneyTest extends BaseTest {
         CreateUserRequest createUserRequest = AdminSteps.createUser();
 
         int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -49,7 +50,7 @@ public class TransferMoneyTest extends BaseTest {
         CreateUserRequest createNewUserRequest = AdminSteps.createUser();
 
         int newAccountId = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -91,13 +92,13 @@ public class TransferMoneyTest extends BaseTest {
 
         //Получение id аккаунта(счёта) юзера
         int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
 
         int anotherAccountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -155,7 +156,7 @@ public class TransferMoneyTest extends BaseTest {
         CreateUserRequest createUserRequest = AdminSteps.createUser();
 
         int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -163,7 +164,7 @@ public class TransferMoneyTest extends BaseTest {
         CreateUserRequest createNewUserRequest = AdminSteps.createUser();
 
         int newUserAccountId = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -204,12 +205,12 @@ public class TransferMoneyTest extends BaseTest {
 
         //Получение id аккаунта(счёта) юзера
         int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
         int anotherAccountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -247,7 +248,7 @@ public class TransferMoneyTest extends BaseTest {
         CreateUserRequest createUserRequest = AdminSteps.createUser();
 
         int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -256,7 +257,7 @@ public class TransferMoneyTest extends BaseTest {
         CreateUserRequest createNewUserRequest = AdminSteps.createUser();
 
         int newUserAccountId = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -265,7 +266,7 @@ public class TransferMoneyTest extends BaseTest {
         TransferMoneyToAnotherAccountRequest transferMoneyToAnotherAccountRequest = TransferMoneyToAnotherAccountRequest.builder()
                 .senderAccountId(accountId)
                 .receiverAccountId(newUserAccountId)
-                .amount(1000)
+                .amount(RandomData.getRandomAmount(0.01, 10000.00))
                 .build();
 
         new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_TRANSFER, ResponseSpecs.invalidTransfer())
@@ -296,12 +297,12 @@ public class TransferMoneyTest extends BaseTest {
 
         //Получение id аккаунта(счёта) юзера
         int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
         int anotherAccountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post(null)
+                .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
@@ -310,7 +311,7 @@ public class TransferMoneyTest extends BaseTest {
         TransferMoneyToAnotherAccountRequest transferMoneyToAnotherAccountRequest = TransferMoneyToAnotherAccountRequest.builder()
                 .senderAccountId(accountId)
                 .receiverAccountId(anotherAccountId)
-                .amount(1000)
+                .amount(RandomData.getRandomAmount(0.01, 10000.00))
                 .build();
 
         new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS_TRANSFER, ResponseSpecs.invalidTransfer())
