@@ -10,7 +10,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import requests.*;
+import requests.skeleton.Endpoint;
+import requests.skeleton.requesters.CrudRequester;
+import requests.steps.AdminSteps;
 
 import java.util.stream.Stream;
 
@@ -24,16 +26,10 @@ public class TransferMoneyTest extends BaseTest {
     @ParameterizedTest
     @ValueSource(doubles = {0.01, 9999.99, 10000.00})
     public void transferValidAmountFromOneAccountToAnotherAccountWithTheAnotherOwnerTest(double amount) {
-        //Создание пользователя и аккаунта
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
 
-        int accountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
+
+        int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
@@ -45,21 +41,15 @@ public class TransferMoneyTest extends BaseTest {
                 .balance(MAX_DEPOSIT_AMOUNT)
                 .build();
 
-        new DepositMoneyToAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.requestReturnsOk())
                 .post(depositMoneyToAccountRequest);
-        new DepositMoneyToAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.requestReturnsOk())
                 .post(depositMoneyToAccountRequest);
 
         //Создание нового юзера и аккаунта
-        CreateUserRequest createNewUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
+        CreateUserRequest createNewUserRequest = AdminSteps.createUser();
 
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createNewUserRequest);
-        int newAccountId = new CreateAccountRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int newAccountId = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
@@ -71,12 +61,12 @@ public class TransferMoneyTest extends BaseTest {
                 .receiverAccountId(newAccountId)
                 .amount(amount)
                 .build();
-        new TransferMoneyToAnotherAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.successfulTransfer())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_TRANSFER, ResponseSpecs.successfulTransfer())
                 .post(transferMoneyToAnotherAccountRequest);
 
 
         //Проверка, что на чужой счёт денеги поступили
-        double actualBalanceNewUser = new GetUserProfileRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceNewUser = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -85,7 +75,7 @@ public class TransferMoneyTest extends BaseTest {
         assertEquals(amount, actualBalanceNewUser, 0.01);
 
         //Проверка, что с текущего счета деньги списались
-        double actualBalance = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalance = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -97,24 +87,17 @@ public class TransferMoneyTest extends BaseTest {
     @ParameterizedTest
     @ValueSource(doubles = {0.01, 9999.99, 10000.00})
     public void transferValidAmountFromOneAccountToAnotherAccountWithTheTheSameOwnerTest(double amount) {
-        //Создание пользователя
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
 
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
 
         //Получение id аккаунта(счёта) юзера
-        int accountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
 
-        int anotherAccountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int anotherAccountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
@@ -125,9 +108,9 @@ public class TransferMoneyTest extends BaseTest {
                 .id(accountId)
                 .balance(MAX_DEPOSIT_AMOUNT)
                 .build();
-        new DepositMoneyToAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.requestReturnsOk())
                 .post(depositMoneyToAccountRequest);
-        new DepositMoneyToAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.requestReturnsOk())
                 .post(depositMoneyToAccountRequest);
 
 
@@ -138,11 +121,11 @@ public class TransferMoneyTest extends BaseTest {
                 .amount(amount)
                 .build();
 
-        new TransferMoneyToAnotherAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.successfulTransfer())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_TRANSFER, ResponseSpecs.successfulTransfer())
                 .post(transferMoneyToAnotherAccountRequest);
 
         //Проверка, что на другой счёт денеги поступили
-        double actualBalanceAnotherAccount = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceAnotherAccount = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -151,7 +134,7 @@ public class TransferMoneyTest extends BaseTest {
 
 
         //Проверка, что с текущего счета деньги списались
-        double actualBalanceFirstAccount = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceFirstAccount = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -169,38 +152,22 @@ public class TransferMoneyTest extends BaseTest {
     @MethodSource("invalidAmount")
     @ParameterizedTest
     public void transferInvalidAmountFromOneAccountToAnotherAccountWithTheAnotherOwnerTest(double amount, String errorValue) {
-        //Создание пользователя
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
 
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
 
-        int accountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
 
-        //Создание нового юзера и аккаунта
-        CreateUserRequest createNewUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createNewUserRequest);
+        CreateUserRequest createNewUserRequest = AdminSteps.createUser();
 
-
-        int newUserAccountId = new CreateAccountRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int newUserAccountId = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
-
 
         //Перевод денег на чужой аккаунт
         TransferMoneyToAnotherAccountRequest transferMoneyToAnotherAccountRequest = TransferMoneyToAnotherAccountRequest.builder()
@@ -209,12 +176,11 @@ public class TransferMoneyTest extends BaseTest {
                 .amount(amount)
                 .build();
 
-        new TransferMoneyToAnotherAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.transferRequestReturnsBadRequest(amount, errorValue))
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_TRANSFER, ResponseSpecs.transferRequestReturnsBadRequest(amount, errorValue))
                 .post(transferMoneyToAnotherAccountRequest);
 
-
         //Проверка, что на чужой счёт денеги не поступили
-        double actualBalanceNewUser = new GetUserProfileRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceNewUser = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -223,7 +189,7 @@ public class TransferMoneyTest extends BaseTest {
         softly.assertThat(actualBalanceNewUser).isCloseTo(0.00, within(0.01));
 
         //Проверка, что с текущего счета деньги не списались
-        double actualBalanceFirstUser = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceFirstUser = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -234,23 +200,16 @@ public class TransferMoneyTest extends BaseTest {
     @MethodSource("invalidAmount")
     @ParameterizedTest
     public void transferInvalidAmountFromOneAccountToAnotherAccountWithTheTheSameOwnerTest(double amount, String errorValue) {
-        //Создание пользователя
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
 
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
 
         //Получение id аккаунта(счёта) юзера
-        int accountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
-        int anotherAccountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int anotherAccountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
@@ -263,12 +222,11 @@ public class TransferMoneyTest extends BaseTest {
                 .amount(amount)
                 .build();
 
-        new TransferMoneyToAnotherAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.transferRequestReturnsBadRequest(amount, errorValue))
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_TRANSFER, ResponseSpecs.transferRequestReturnsBadRequest(amount, errorValue))
                 .post(transferMoneyToAnotherAccountRequest);
 
-
         //Проверка, что на другой счёт денеги не поступили
-        double actualBalanceAnotherAccount = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceAnotherAccount = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -276,7 +234,7 @@ public class TransferMoneyTest extends BaseTest {
         softly.assertThat(actualBalanceAnotherAccount).isCloseTo(0.00, within(0.01));
 
         //Проверка, что с текущего счета деньги не списались
-        double actualBalanceFirstUser = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceFirstUser = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -286,32 +244,19 @@ public class TransferMoneyTest extends BaseTest {
 
     @Test
     public void transferFromOneAccountWithoutEnoughBalanceToAnotherAccountWithTheAnotherOwnerTest() {
-//Создание пользователя
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
 
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
 
-        int accountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
+
         //Создание нового юзера и аккаунта
-        CreateUserRequest createNewUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createNewUserRequest);
+        CreateUserRequest createNewUserRequest = AdminSteps.createUser();
 
-
-        int newUserAccountId = new CreateAccountRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int newUserAccountId = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
@@ -321,15 +266,14 @@ public class TransferMoneyTest extends BaseTest {
         TransferMoneyToAnotherAccountRequest transferMoneyToAnotherAccountRequest = TransferMoneyToAnotherAccountRequest.builder()
                 .senderAccountId(accountId)
                 .receiverAccountId(newUserAccountId)
-                .amount(1000)
+                .amount(RandomData.getRandomAmount(0.01, 10000.00))
                 .build();
 
-        new TransferMoneyToAnotherAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.invalidTransfer())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_TRANSFER, ResponseSpecs.invalidTransfer())
                 .post(transferMoneyToAnotherAccountRequest);
 
-
         //Проверка, что на чужой счёт денеги не поступили
-        double actualBalanceNewUser = new GetUserProfileRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceNewUser = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -338,34 +282,26 @@ public class TransferMoneyTest extends BaseTest {
         softly.assertThat(actualBalanceNewUser).isCloseTo(0.00, within(0.01));
 
         //Проверка, что с текущего счета деньги не списались
-        double actualBalanceFirstUser = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceFirstUser = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
                 .getAccounts().getFirst().getBalance();
         softly.assertThat(actualBalanceFirstUser).isCloseTo(0.00, within(0.01));
-
     }
 
     @Test
     public void transferFromOneAccountWithoutEnoughBalanceToAnotherAccountWithTheTheSameOwnerTest() {
-        //Создание пользователя
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
 
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
 
         //Получение id аккаунта(счёта) юзера
-        int accountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
-        int anotherAccountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int anotherAccountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
@@ -375,15 +311,14 @@ public class TransferMoneyTest extends BaseTest {
         TransferMoneyToAnotherAccountRequest transferMoneyToAnotherAccountRequest = TransferMoneyToAnotherAccountRequest.builder()
                 .senderAccountId(accountId)
                 .receiverAccountId(anotherAccountId)
-                .amount(1000)
+                .amount(RandomData.getRandomAmount(0.01, 10000.00))
                 .build();
 
-        new TransferMoneyToAnotherAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.invalidTransfer())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS_TRANSFER, ResponseSpecs.invalidTransfer())
                 .post(transferMoneyToAnotherAccountRequest);
 
-
         //Проверка, что на другой счёт денеги не поступили
-        double actualBalanceAnotherAccount = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceAnotherAccount = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -391,7 +326,7 @@ public class TransferMoneyTest extends BaseTest {
         softly.assertThat(actualBalanceAnotherAccount).isCloseTo(0.00, within(0.01));
 
         //Проверка, что с текущего счета деньги не списались
-        double actualBalanceFirstUser = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalanceFirstUser = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
