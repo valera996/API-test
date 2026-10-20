@@ -10,10 +10,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import requests.AdminCreateUserRequester;
-import requests.CreateAccountRequester;
-import requests.DepositMoneyToAccountRequester;
-import requests.GetUserProfileRequester;
+import requests.skeleton.Endpoint;
+import requests.skeleton.requesters.CrudRequester;
+import requests.steps.AdminSteps;
+
 import java.util.stream.Stream;
 
 public class DepositMoneyTest extends BaseTest {
@@ -21,37 +21,23 @@ public class DepositMoneyTest extends BaseTest {
     @ParameterizedTest
     @ValueSource(doubles = {0.01, 4999.99, 5000.00})
     public void depositMoneyWithValidAmountTest(double amount) {
-        //Создание пользователя
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
 
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
-
-
-        //Получение id аккаунта(счёта) юзера
-
-        int accountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
 
-
-        //Депосит денег на созданный аккаунт
         DepositMoneyToAccountRequest depositMoneyToAccountRequest = DepositMoneyToAccountRequest.builder()
                 .id(accountId)
                 .balance(amount)
                 .build();
 
-        new DepositMoneyToAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.requestReturnsOk())
                 .post(depositMoneyToAccountRequest);
 
-        //Проверка поступления денег на счёт
-        double actualBalance = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalance = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -70,35 +56,24 @@ public class DepositMoneyTest extends BaseTest {
     @MethodSource("invalidAmount")
     @ParameterizedTest
     public void depositMoneyWithInvalidAmountTest(double amount, String errorValue) {
-        //Создание пользователя
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
 
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
 
-        //Получение id аккаунта(счёта) юзера
-        int accountId = new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int accountId = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
 
-
-        //Депосит денег на созданный аккаунт
         DepositMoneyToAccountRequest depositMoneyToAccountRequest = DepositMoneyToAccountRequest.builder()
                 .id(accountId)
                 .balance(amount)
                 .build();
 
-        new DepositMoneyToAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.transferRequestReturnsBadRequest(amount, errorValue))
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.transferRequestReturnsBadRequest(amount, errorValue))
                 .post(depositMoneyToAccountRequest);
 
-        //Проверка, что на счёт денеги не поступили
-        double actualBalance = new GetUserProfileRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalance = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -109,47 +84,29 @@ public class DepositMoneyTest extends BaseTest {
 
     @Test
     public void depositMoneyToAnotherPersonAccountTest() {
-        //Создание пользователя
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
 
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
 
-        new CreateAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post();
 
+        CreateUserRequest createNewUserRequest = AdminSteps.createUser();
 
-        //Создание нового пользователя и аккаунта
-        CreateUserRequest createNewUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
-
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createNewUserRequest);
-
-        int newUserAccountId = new CreateAccountRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), ResponseSpecs.entityWasCreated())
+        int newUserAccountId = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
                 .post()
                 .extract()
                 .as(CreateAccountResponse.class)
                 .getId();
 
-        //Депосит денег на чужой аккаунт
         DepositMoneyToAccountRequest depositMoneyToAccountRequest = DepositMoneyToAccountRequest.builder()
                 .id(newUserAccountId)
-                .balance(300)
+                .balance(RandomData.getRandomAmount(0.01, 5000.00))
                 .build();
 
-        new DepositMoneyToAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.depositMoneyToAnotherAccount())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.depositMoneyToAnotherAccount())
                 .post(depositMoneyToAccountRequest);
 
-        //Проверка, что на чужой счёт денеги не поступили
-        double actualBalance = new GetUserProfileRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), ResponseSpecs.requestReturnsOk())
+        double actualBalance = new CrudRequester(RequestSpecs.authAsUser(createNewUserRequest.getUsername(), createNewUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
                 .get()
                 .extract()
                 .as(GetUserProfileResponse.class)
@@ -160,22 +117,27 @@ public class DepositMoneyTest extends BaseTest {
 
     @Test
     public void depositMoneyToNonexistentPersonAccountTest() {
-        //Создание пользователя
-        CreateUserRequest createUserRequest = CreateUserRequest.builder()
-                .username(RandomData.getUserName())
-                .password(RandomData.getUserPassword())
-                .role(UserRole.USER.toString())
-                .build();
-        new AdminCreateUserRequester(RequestSpecs.adminSpec(), ResponseSpecs.entityWasCreated())
-                .post(createUserRequest);
 
-        //Депосит денег на несуществующий аккаунт
+        CreateUserRequest createUserRequest = AdminSteps.createUser();
+
         DepositMoneyToAccountRequest depositMoneyToAccountRequest = DepositMoneyToAccountRequest.builder()
                 .id(Integer.MAX_VALUE)
-                .balance(300)
+                .balance(RandomData.getRandomAmount(0.01, 5000.00))
                 .build();
 
-        new DepositMoneyToAccountRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), ResponseSpecs.depositMoneyToAnotherAccount())
+        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.depositMoneyToAnotherAccount())
                 .post(depositMoneyToAccountRequest);
+
+        GetUserProfileResponse profile = new CrudRequester(
+                RequestSpecs.authAsUser(
+                        createUserRequest.getUsername(),
+                        createUserRequest.getPassword()),
+                Endpoint.CUSTOMER_PROFILE,
+                ResponseSpecs.requestReturnsOk())
+                .get()
+                .extract()
+                .as(GetUserProfileResponse.class);
+
+        softly.assertThat(profile.getAccounts()).isEmpty();
     }
 }
