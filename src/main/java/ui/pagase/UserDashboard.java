@@ -9,6 +9,7 @@ import static com.codeborne.selenide.Selenide.$;
 public class UserDashboard extends BasePage<UserDashboard>{
     private SelenideElement welcomeText = $(Selectors.byClassName("welcome-text"));
     private SelenideElement createNewAccount = $(Selectors.byText("➕ Create New Account"));
+    private SelenideElement userInfo = $(Selectors.byClassName("user-info"));
     @Override
     public String url() {
         return "/dashboard";
@@ -16,6 +17,10 @@ public class UserDashboard extends BasePage<UserDashboard>{
 
     public UserDashboard createNewAccount(){
         createNewAccount.click();
+        return this;
+    }
+    public UserDashboard showUserInfo(){
+        userInfo.click();
         return this;
     }
 }
