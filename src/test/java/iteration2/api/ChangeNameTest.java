@@ -1,16 +1,19 @@
 package iteration2.api;
 
-import Specs.RequestSpecs;
-import Specs.ResponseSpecs;
-import generators.RandomModelGenerator;
+import api.Specs.RequestSpecs;
+import api.Specs.ResponseSpecs;
+import api.generators.RandomModelGenerator;
+import api.models.ChangeUserNameRequest;
+import api.models.CreateUserRequest;
+import api.models.CreateUserResponse;
+import api.models.GetUserProfileResponse;
 import iteration1.api.BaseTest;
-import models.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import requests.skeleton.Endpoint;
-import requests.skeleton.requesters.CrudRequester;
-import requests.steps.AdminSteps;
+import api.requests.skeleton.Endpoint;
+import api.requests.skeleton.requesters.CrudRequester;
+import api.requests.steps.AdminSteps;
 
 public class ChangeNameTest extends BaseTest {
 

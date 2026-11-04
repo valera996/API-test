@@ -1,14 +1,14 @@
 package iteration1.api;
 
-import Specs.RequestSpecs;
-import Specs.ResponseSpecs;
-import models.CreateAccountResponse;
-import models.CreateUserRequest;
-import models.GetAccountResponse;
+import api.Specs.RequestSpecs;
+import api.Specs.ResponseSpecs;
+import api.models.CreateAccountResponse;
+import api.models.CreateUserRequest;
+import api.models.GetAccountResponse;
 import org.junit.jupiter.api.Test;
-import requests.skeleton.Endpoint;
-import requests.skeleton.requesters.CrudRequester;
-import requests.steps.AdminSteps;
+import api.requests.skeleton.Endpoint;
+import api.requests.skeleton.requesters.CrudRequester;
+import api.requests.steps.AdminSteps;
 
 public class CreateAccountTest extends BaseTest {
 

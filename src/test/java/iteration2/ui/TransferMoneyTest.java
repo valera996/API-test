@@ -1,16 +1,16 @@
 package iteration2.ui;
 
-import Specs.RequestSpecs;
-import Specs.ResponseSpecs;
+import api.Specs.RequestSpecs;
+import api.Specs.ResponseSpecs;
+import api.models.*;
 import com.codeborne.selenide.*;
-import generators.RandomData;
-import models.*;
+import api.generators.RandomData;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.Alert;
-import requests.skeleton.Endpoint;
-import requests.skeleton.requesters.CrudRequester;
-import requests.steps.AdminSteps;
+import api.requests.skeleton.Endpoint;
+import api.requests.skeleton.requesters.CrudRequester;
+import api.requests.steps.AdminSteps;
 import java.util.Map;
 import static com.codeborne.selenide.Selenide.*;
 import static org.assertj.core.api.Assertions.assertThat;
