@@ -5,13 +5,20 @@ import api.Specs.RequestSpecs;
 import api.models.CreateUserRequest;
 import com.codeborne.selenide.Configuration;
 import com.codeborne.selenide.Selenide;
+import common.extension.AdminSessionExtension;
+import common.extension.BrowserMathExtension;
+import common.extension.UserAgentExtension;
+import common.extension.UserSessionExtension;
 import iteration1.api.BaseTest;
 import org.junit.jupiter.api.BeforeAll;
-
+import org.junit.jupiter.api.extension.ExtendWith;
 import java.util.Map;
-
 import static com.codeborne.selenide.Selenide.executeJavaScript;
 
+@ExtendWith(AdminSessionExtension.class)
+@ExtendWith(UserSessionExtension.class)
+@ExtendWith(BrowserMathExtension.class)
+@ExtendWith(UserAgentExtension.class)
 public class BaseUiTest extends BaseTest {
     @BeforeAll
     public static void setupSelenoid(){
@@ -32,5 +39,4 @@ public class BaseUiTest extends BaseTest {
     public void authAsUser(CreateUserRequest createUserRequest){
         authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword());
     }
-
 }
