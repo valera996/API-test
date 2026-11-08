@@ -1,15 +1,16 @@
 package ui.pagase;
 
-import com.codeborne.selenide.ElementsCollection;
-import com.codeborne.selenide.Selectors;
-import com.codeborne.selenide.SelenideElement;
+import com.codeborne.selenide.*;
 import lombok.Getter;
+import ui.elements.UserBage;
+import java.util.List;
 import static com.codeborne.selenide.Selenide.$;
 
 @Getter
 public class AdminPanel extends BasePage<AdminPanel>{
     private SelenideElement addUserbutton = $(Selectors.byText("Add User"));
     private SelenideElement adminPanelText =  $(Selectors.byText("Admin Panel"));
+    private SelenideElement allUsers =  $(Selectors.byText("All Users"));
 
     @Override
     public String url() {
@@ -24,7 +25,17 @@ public class AdminPanel extends BasePage<AdminPanel>{
         return this;
     }
 
-    public ElementsCollection getAllUsers(){
-        return $(Selectors.byText("All Users")).parent().findAll("li");
+    public List<UserBage> getAllUsers(){
+        ElementsCollection elementsCollection = $(Selectors.byText("All Users")).parent().findAll("li");
+        return generatePageElements(elementsCollection, UserBage::new);
     }
+    public AdminPanel waitForUser(String username) {
+                allUsers.parent()
+                .findAll("li")
+                .findBy(Condition.text(username))
+                .shouldBe(Condition.visible);
+
+        return this;
+    }
+
 }
