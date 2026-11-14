@@ -1,253 +1,94 @@
 package iteration2.ui;
 
-import api.Specs.RequestSpecs;
-import api.Specs.ResponseSpecs;
 import api.models.*;
-import com.codeborne.selenide.*;
+import api.requests.steps.UserSteps;
 import api.generators.RandomData;
-import org.junit.jupiter.api.BeforeAll;
+import iteration1.ui.BaseUiTest;
 import org.junit.jupiter.api.Test;
-import org.openqa.selenium.Alert;
-import api.requests.skeleton.Endpoint;
-import api.requests.skeleton.requesters.CrudRequester;
 import api.requests.steps.AdminSteps;
-import java.util.Map;
-import static com.codeborne.selenide.Selenide.*;
+import ui.pagase.BankAlert;
+import ui.pagase.MakeATransfer;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class TransferMoneyTest {
-    @BeforeAll
-    public static void setupSelenoid(){
-        Configuration.remote = "http://localhost:4444/wd/hub";
-        Configuration.baseUrl = "http://192.168.0.43:3000";
-        Configuration.browser = "chrome";
-        Configuration.browserSize = "1920x1080";
+public class TransferMoneyTest extends BaseUiTest {
 
-        Configuration.browserCapabilities.setCapability("selenoid:options", Map.of("enableVNC", true,
-                "enableLog", true));
-    }
     private static final double MAX_DEPOSIT_AMOUNT = 5000.00;
 
     @Test
     public void transferValidAmountFromOneAccountToAnotherAccountWithTheTheSameOwnerTest() {
-        CreateUserRequest createUserRequest = AdminSteps.createUser();
+        CreateUserRequest user = AdminSteps.createUser();
 
-        CreateAccountResponse account = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post()
-                .extract()
-                .as(CreateAccountResponse.class);
+        authAsUser(user);
 
-        DepositMoneyToAccountRequest depositMoneyToAccountRequest = DepositMoneyToAccountRequest.builder()
-                .id(account.getId())
-                .balance(MAX_DEPOSIT_AMOUNT)
-                .build();
-        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.requestReturnsOk())
-                .post(depositMoneyToAccountRequest);
+        UserSteps userSteps = new UserSteps(
+                user.getUsername(),
+                user.getPassword());
+        CreateAccountResponse senderAccount = userSteps.createAccount();
 
-        CreateAccountResponse recipientAcc  = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post()
-                .extract()
-                .as(CreateAccountResponse.class);
+        userSteps.depositMoney(senderAccount.getId(),MAX_DEPOSIT_AMOUNT);
 
-        String userAuthHeader =  new CrudRequester(
-                RequestSpecs.unauthSpec(),
-                Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder().username(createUserRequest.getUsername()).password(createUserRequest.getPassword()).build())
-                .extract()
-                .header("Authorization");
-
-        Selenide.open("/");
-
-        executeJavaScript("localStorage.setItem('authToken', arguments[0])", userAuthHeader);
-
-        Selenide.open("/dashboard");
-
-        $(Selectors.byText("🔄 Make a Transfer")).click();
-
-        $(Selectors.byText(account.getAccountNumber())).click();
-
-        $(Selectors.byAttribute("placeholder", "Enter recipient name"))
-                .setValue(createUserRequest.getUsername());
-
-        $(Selectors.byAttribute("placeholder","Enter recipient account number")).setValue(recipientAcc.getAccountNumber());
+        CreateAccountResponse recipientAcc = userSteps.createAccount();
 
         double transferAmount = RandomData.getRandomAmount(0.01, MAX_DEPOSIT_AMOUNT);
-        $(Selectors.byAttribute("placeholder","Enter amount")).setValue(String.valueOf(transferAmount));
+        new MakeATransfer().open().makeATransfer(senderAccount.getAccountNumber(),recipientAcc.getAccountNumber(),user.getUsername(),transferAmount)
+                        .checkAlertMessageAndAccept(String.format(BankAlert.SUCCESSFULLY_TRANSFERRED.getMessage(),
+                                transferAmount,
+                                recipientAcc.getAccountNumber()));
 
-        $("#confirmCheck").click();
+        double senderBalance = userSteps.getBalance(senderAccount.getAccountNumber());
 
-        $(Selectors.byTagAndText("button","🚀 Send Transfer")).click();
-
-        Alert alert = switchTo().alert();
-
-        assertEquals("✅ Successfully transferred $" + transferAmount + " to account " + recipientAcc.getAccountNumber() + "!", alert.getText());
-        alert.accept();
-
-        GetUserProfileResponse profile = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
-                .get().extract().as(GetUserProfileResponse.class);
-
-        double senderBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == account.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
-
-        double recipientBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == recipientAcc.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
-
+        double recipientBalance = userSteps.getBalance(recipientAcc.getAccountNumber());
         assertThat(senderBalance).isEqualTo(MAX_DEPOSIT_AMOUNT - transferAmount);
         assertThat(recipientBalance).isEqualTo(transferAmount);
     }
 
     @Test
     public void transferWithoutSenderAccountTest() {
-        CreateUserRequest createUserRequest = AdminSteps.createUser();
+        CreateUserRequest user = AdminSteps.createUser();
 
-        CreateAccountResponse account = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post().extract().as(CreateAccountResponse.class);
+        authAsUser(user);
 
-        new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.requestReturnsOk())
-                .post(DepositMoneyToAccountRequest.builder()
-                        .id(account.getId())
-                        .balance(MAX_DEPOSIT_AMOUNT)
-                        .build());
+        UserSteps userSteps = new UserSteps(
+                user.getUsername(),
+                user.getPassword());
+        CreateAccountResponse senderAccount = userSteps.createAccount();
 
-        CreateAccountResponse recipientAcc = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post().extract().as(CreateAccountResponse.class);
+        userSteps.depositMoney(senderAccount.getId(),MAX_DEPOSIT_AMOUNT);
 
-        String authHeader = new CrudRequester(
-                RequestSpecs.unauthSpec(), Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder()
-                        .username(createUserRequest.getUsername())
-                        .password(createUserRequest.getPassword())
-                        .build())
-                .extract().header("Authorization");
+        CreateAccountResponse recipientAcc = userSteps.createAccount();
 
-        Selenide.open("/");
-        executeJavaScript("localStorage.setItem('authToken', arguments[0])", authHeader);
-        Selenide.open("/dashboard");
+        double transferAmount = RandomData.getRandomAmount(0.01, MAX_DEPOSIT_AMOUNT);
+        new MakeATransfer().open().makeATransfer(recipientAcc.getAccountNumber(),user.getUsername(),transferAmount)
+                .checkAlertMessageAndAccept(BankAlert.PLEASE_FILL_ALL_FIELDS_AND_CONFIRM.getMessage());
 
-        $(Selectors.byText("🔄 Make a Transfer")).click();
+        double senderBalance = userSteps.getBalance(senderAccount.getAccountNumber());
+        double recipientBalance = userSteps.getBalance(recipientAcc.getAccountNumber());
 
-        // Счёт отправителя НЕ выбираем
-        $(Selectors.byAttribute("placeholder", "Enter recipient name"))
-                .setValue(createUserRequest.getUsername());
-        $(Selectors.byAttribute("placeholder", "Enter recipient account number"))
-                .setValue(recipientAcc.getAccountNumber());
-
-        double amount = RandomData.getRandomAmount(0.01, MAX_DEPOSIT_AMOUNT);
-        $(Selectors.byAttribute("placeholder", "Enter amount"))
-                .setValue(String.valueOf(amount));
-
-        $("#confirmCheck").click();
-        $(Selectors.byTagAndText("button", "🚀 Send Transfer")).click();
-
-        Alert alert = switchTo().alert();
-        assertEquals("❌ Please fill all fields and confirm.", alert.getText());
-        alert.accept();
-
-        GetUserProfileResponse profile = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
-                .get().extract().as(GetUserProfileResponse.class);
-
-        double senderBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == account.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
-
-        double recipientBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == recipientAcc.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
         assertThat(senderBalance).isEqualTo(MAX_DEPOSIT_AMOUNT);
         assertThat(recipientBalance).isZero();
     }
 
     @Test
     public void transferWithoutRecipientAccountTest() {
-        CreateUserRequest createUserRequest = AdminSteps.createUser();
+        CreateUserRequest user = AdminSteps.createUser();
 
-        CreateAccountResponse account = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post().extract().as(CreateAccountResponse.class);
+        authAsUser(user);
 
-        new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.requestReturnsOk())
-                .post(DepositMoneyToAccountRequest.builder()
-                        .id(account.getId())
-                        .balance(MAX_DEPOSIT_AMOUNT)
-                        .build());
+        UserSteps userSteps = new UserSteps(
+                user.getUsername(),
+                user.getPassword());
+        CreateAccountResponse senderAccount = userSteps.createAccount();
 
-       CreateAccountResponse recipientAcc = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post().extract().as(CreateAccountResponse.class);
+        userSteps.depositMoney(senderAccount.getId(),MAX_DEPOSIT_AMOUNT);
 
-        String authHeader = new CrudRequester(
-                RequestSpecs.unauthSpec(), Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder()
-                        .username(createUserRequest.getUsername())
-                        .password(createUserRequest.getPassword())
-                        .build())
-                .extract().header("Authorization");
+        CreateAccountResponse recipientAcc = userSteps.createAccount();
 
-        Selenide.open("/");
-        executeJavaScript("localStorage.setItem('authToken', arguments[0])", authHeader);
-        Selenide.open("/dashboard");
+        double transferAmount = RandomData.getRandomAmount(0.01, MAX_DEPOSIT_AMOUNT);
+        new MakeATransfer().open().makeATransferWithoutRecipientAccount(senderAccount.getAccountNumber(),user.getUsername(),transferAmount)
+                .checkAlertMessageAndAccept(BankAlert.PLEASE_FILL_ALL_FIELDS_AND_CONFIRM.getMessage());
 
-        $(Selectors.byText("🔄 Make a Transfer")).click();
-        $(Selectors.byText(account.getAccountNumber())).click();
-
-        $(Selectors.byAttribute("placeholder", "Enter recipient name")).setValue(createUserRequest.getUsername());
-
-        // Номер счёта получателя оставляем пустым
-        double amount = RandomData.getRandomAmount(0.01, MAX_DEPOSIT_AMOUNT);
-        $(Selectors.byAttribute("placeholder", "Enter amount"))
-                .setValue(String.valueOf(amount));
-
-        $("#confirmCheck").click();
-        $(Selectors.byTagAndText("button", "🚀 Send Transfer")).click();
-
-        Alert alert = switchTo().alert();
-        assertEquals("❌ Please fill all fields and confirm.", alert.getText());
-        alert.accept();
-
-        GetUserProfileResponse profile = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
-                .get().extract().as(GetUserProfileResponse.class);
-
-        double senderBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == account.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
-
-        double recipientBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == recipientAcc.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
+        double senderBalance =  userSteps.getBalance(senderAccount.getAccountNumber());
+        double recipientBalance = userSteps.getBalance(recipientAcc.getAccountNumber());
 
         assertThat(senderBalance).isEqualTo(MAX_DEPOSIT_AMOUNT);
         assertThat(recipientBalance).isZero();
@@ -255,88 +96,22 @@ public class TransferMoneyTest {
 
     @Test
     public void transferAmountAboveMaximumTest() {
-        CreateUserRequest createUserRequest = AdminSteps.createUser();
+        CreateUserRequest user = AdminSteps.createUser();
 
-        CreateAccountResponse account = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.ACCOUNTS,
-                ResponseSpecs.entityWasCreated())
-                .post()
-                .extract()
-                .as(CreateAccountResponse.class);
+        authAsUser(user);
 
-        CreateAccountResponse recipientAcc = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.ACCOUNTS,
-                ResponseSpecs.entityWasCreated())
-                .post()
-                .extract()
-                .as(CreateAccountResponse.class);
+        UserSteps userSteps = new UserSteps(
+                user.getUsername(),
+                user.getPassword());
+        CreateAccountResponse senderAccount = userSteps.createAccount();
+        CreateAccountResponse recipientAcc = userSteps.createAccount();
 
-        String userAuthHeader = new CrudRequester(
-                RequestSpecs.unauthSpec(),
-                Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder()
-                        .username(createUserRequest.getUsername())
-                        .password(createUserRequest.getPassword())
-                        .build())
-                .extract()
-                .header("Authorization");
+        double transferAmount = RandomData.getInvalidTransferAmountAboveMax();
+        new MakeATransfer().open().makeATransfer(senderAccount.getAccountNumber(),recipientAcc.getAccountNumber(),user.getUsername(),transferAmount)
+                .checkAlertMessageAndAccept(BankAlert.ERROR_TRANSFER_AMOUNT_CANNOT_EXCEED_10000.getMessage());
 
-        Selenide.open("/");
-
-        executeJavaScript(
-                "localStorage.setItem('authToken', arguments[0])",
-                userAuthHeader
-        );
-
-        Selenide.open("/dashboard");
-
-        $(Selectors.byText("🔄 Make a Transfer")).click();
-
-        $(Selectors.byText(account.getAccountNumber())).click();
-
-        $(Selectors.byAttribute("placeholder", "Enter recipient name"))
-                .setValue(createUserRequest.getUsername());
-
-        $(Selectors.byAttribute("placeholder", "Enter recipient account number"))
-                .setValue(recipientAcc.getAccountNumber());
-
-        double amount = RandomData.getInvalidTransferAmountAboveMax();
-
-        $(Selectors.byAttribute("placeholder", "Enter amount"))
-                .setValue(String.valueOf(amount));
-
-        $("#confirmCheck").click();
-
-        $(Selectors.byTagAndText("button", "🚀 Send Transfer")).click();
-
-        Alert alert = switchTo().alert();
-
-        assertEquals("❌ Error: Transfer amount cannot exceed 10000", alert.getText());
-
-        alert.accept();
-
-        GetUserProfileResponse profile = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.CUSTOMER_PROFILE,
-                ResponseSpecs.requestReturnsOk())
-                .get()
-                .extract()
-                .as(GetUserProfileResponse.class);
-
-        double firstAccountBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == account.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
-
-        double secondAccountBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == recipientAcc.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
+        double firstAccountBalance =  userSteps.getBalance(senderAccount.getAccountNumber());
+        double secondAccountBalance = userSteps.getBalance(recipientAcc.getAccountNumber());
 
         assertThat(firstAccountBalance).isZero();
         assertThat(secondAccountBalance).isZero();
@@ -344,82 +119,22 @@ public class TransferMoneyTest {
 
     @Test
     public void transferAmountBelowMinimumTest() {
-        CreateUserRequest createUserRequest = AdminSteps.createUser();
+        CreateUserRequest user = AdminSteps.createUser();
 
-        CreateAccountResponse account = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.ACCOUNTS,
-                ResponseSpecs.entityWasCreated())
-                .post()
-                .extract()
-                .as(CreateAccountResponse.class);
+        authAsUser(user);
 
-        CreateAccountResponse recipientAcc = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.ACCOUNTS,
-                ResponseSpecs.entityWasCreated())
-                .post()
-                .extract()
-                .as(CreateAccountResponse.class);
+        UserSteps userSteps = new UserSteps(
+                user.getUsername(),
+                user.getPassword());
+        CreateAccountResponse senderAccount = userSteps.createAccount();
+        CreateAccountResponse recipientAcc = userSteps.createAccount();
 
-        String userAuthHeader = new CrudRequester(
-                RequestSpecs.unauthSpec(),
-                Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder()
-                        .username(createUserRequest.getUsername())
-                        .password(createUserRequest.getPassword())
-                        .build())
-                .extract()
-                .header("Authorization");
+        double transferAmount = RandomData.getInvalidTransferAmountBelowMin();
+        new MakeATransfer().open().makeATransfer(senderAccount.getAccountNumber(),recipientAcc.getAccountNumber(),user.getUsername(),transferAmount)
+                .checkAlertMessageAndAccept(BankAlert.ERROR_TRANSFER_AMOUNT_MUST_BE_AT_LEAST_001.getMessage());
 
-        Selenide.open("/");
-
-        executeJavaScript("localStorage.setItem('authToken', arguments[0])", userAuthHeader);
-
-        Selenide.open("/dashboard");
-
-        $(Selectors.byText("🔄 Make a Transfer")).click();
-
-        $(Selectors.byText(account.getAccountNumber())).click();
-
-        $(Selectors.byAttribute("placeholder", "Enter recipient name")).setValue(createUserRequest.getUsername());
-
-        $(Selectors.byAttribute("placeholder", "Enter recipient account number")).setValue(recipientAcc.getAccountNumber());
-
-        double amount = RandomData.getInvalidTransferAmountBelowMin();
-
-        $(Selectors.byAttribute("placeholder", "Enter amount")).setValue(String.valueOf(amount));
-
-        $("#confirmCheck").click();
-
-        $(Selectors.byTagAndText("button", "🚀 Send Transfer")).click();
-
-        Alert alert = switchTo().alert();
-
-        assertEquals("❌ Error: Transfer amount must be at least 0.01", alert.getText());
-
-        alert.accept();
-
-        GetUserProfileResponse profile = new CrudRequester(
-                RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),
-                Endpoint.CUSTOMER_PROFILE,
-                ResponseSpecs.requestReturnsOk())
-                .get()
-                .extract()
-                .as(GetUserProfileResponse.class);
-
-        double firstAccountBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == account.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
-
-        double secondAccountBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == recipientAcc.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
+        double firstAccountBalance =  userSteps.getBalance(senderAccount.getAccountNumber());
+        double secondAccountBalance = userSteps.getBalance(recipientAcc.getAccountNumber());
 
         assertThat(firstAccountBalance).isZero();
         assertThat(secondAccountBalance).isZero();
@@ -429,69 +144,23 @@ public class TransferMoneyTest {
     public void transferWithoutConfirmationTest() {
         CreateUserRequest user = AdminSteps.createUser();
 
-        CreateAccountResponse account = new CrudRequester(
-                RequestSpecs.authAsUser(user.getUsername(), user.getPassword()),
-                Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post().extract().as(CreateAccountResponse.class);
+        authAsUser(user);
 
-        new CrudRequester(
-                RequestSpecs.authAsUser(user.getUsername(), user.getPassword()),
-                Endpoint.ACCOUNTS_DEPOSIT, ResponseSpecs.requestReturnsOk())
-                .post(DepositMoneyToAccountRequest.builder()
-                        .id(account.getId())
-                        .balance(MAX_DEPOSIT_AMOUNT)
-                        .build());
+        UserSteps userSteps = new UserSteps(
+                user.getUsername(),
+                user.getPassword());
+        CreateAccountResponse senderAccount = userSteps.createAccount();
 
-        CreateAccountResponse recipientAcc = new CrudRequester(
-                RequestSpecs.authAsUser(user.getUsername(), user.getPassword()),
-                Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post().extract().as(CreateAccountResponse.class);
+        userSteps.depositMoney(senderAccount.getId(),MAX_DEPOSIT_AMOUNT);
 
-        String authHeader = new CrudRequester(
-                RequestSpecs.unauthSpec(), Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder()
-                        .username(user.getUsername())
-                        .password(user.getPassword())
-                        .build())
-                .extract().header("Authorization");
+        CreateAccountResponse recipientAcc = userSteps.createAccount();
 
-        Selenide.open("/");
-        executeJavaScript("localStorage.setItem('authToken', arguments[0])", authHeader);
-        Selenide.open("/dashboard");
+        double transferAmount = RandomData.getRandomAmount(0.01, MAX_DEPOSIT_AMOUNT);
+        new MakeATransfer().open().makeATransferWithoutCheckbox(senderAccount.getAccountNumber(), recipientAcc.getAccountNumber(),user.getUsername(),transferAmount)
+                .checkAlertMessageAndAccept(BankAlert.PLEASE_FILL_ALL_FIELDS_AND_CONFIRM.getMessage());
 
-        $(Selectors.byText("🔄 Make a Transfer")).click();
-        $(Selectors.byText(account.getAccountNumber())).click();
-
-        $(Selectors.byAttribute("placeholder", "Enter recipient name")).setValue(user.getUsername());
-        $(Selectors.byAttribute("placeholder", "Enter recipient account number")).setValue(recipientAcc.getAccountNumber());
-
-        double amount = RandomData.getRandomAmount(0.01, MAX_DEPOSIT_AMOUNT);
-        $(Selectors.byAttribute("placeholder", "Enter amount")).setValue(String.valueOf(amount));
-
-        // Чек-бокс специально НЕ активируем
-        $(Selectors.byTagAndText("button", "🚀 Send Transfer")).click();
-
-        Alert alert = switchTo().alert();
-        assertEquals("❌ Please fill all fields and confirm.", alert.getText());
-        alert.accept();
-
-        GetUserProfileResponse profile = new CrudRequester(
-                RequestSpecs.authAsUser(user.getUsername(), user.getPassword()),
-                Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
-                .get().extract().as(GetUserProfileResponse.class);
-
-        double senderBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == account.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
-
-        double recipientBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == recipientAcc.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
+        double senderBalance =  userSteps.getBalance(senderAccount.getAccountNumber());
+        double recipientBalance = userSteps.getBalance(recipientAcc.getAccountNumber());
 
         assertThat(senderBalance).isEqualTo(MAX_DEPOSIT_AMOUNT);
         assertThat(recipientBalance).isZero();
@@ -501,64 +170,22 @@ public class TransferMoneyTest {
     public void transferWithoutEnoughBalanceTest() {
         CreateUserRequest user = AdminSteps.createUser();
 
-        // Создаём два счёта, но ничего не пополняем
-        CreateAccountResponse account = new CrudRequester(
-                RequestSpecs.authAsUser(user.getUsername(), user.getPassword()),
-                Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post().extract().as(CreateAccountResponse.class);
+        authAsUser(user);
 
-        CreateAccountResponse recipientAcc = new CrudRequester(
-                RequestSpecs.authAsUser(user.getUsername(), user.getPassword()),
-                Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post().extract().as(CreateAccountResponse.class);
+        UserSteps userSteps = new UserSteps(
+                user.getUsername(),
+                user.getPassword());
+        CreateAccountResponse senderAccount = userSteps.createAccount();
+        CreateAccountResponse recipientAcc = userSteps.createAccount();
 
-        String authHeader = new CrudRequester(
-                RequestSpecs.unauthSpec(), Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder()
-                        .username(user.getUsername())
-                        .password(user.getPassword())
-                        .build())
-                .extract().header("Authorization");
+        double transferAmount = RandomData.getRandomAmount(0.01, MAX_DEPOSIT_AMOUNT);
+        new MakeATransfer().open().makeATransfer(senderAccount.getAccountNumber(),recipientAcc.getAccountNumber(),user.getUsername(),transferAmount)
+                .checkAlertMessageAndAccept(BankAlert.ERROR_INVALID_TRANSFER_INSUFFICIENT_FUNDS.getMessage());
 
-        Selenide.open("/");
-        executeJavaScript("localStorage.setItem('authToken', arguments[0])", authHeader);
-        Selenide.open("/dashboard");
+        double senderBalance =  userSteps.getBalance(senderAccount.getAccountNumber());
+        double recipientBalance = userSteps.getBalance(recipientAcc.getAccountNumber());
 
-        $(Selectors.byText("🔄 Make a Transfer")).click();
-        $(Selectors.byText(account.getAccountNumber())).click();
-
-        $(Selectors.byAttribute("placeholder", "Enter recipient name")).setValue(user.getUsername());
-        $(Selectors.byAttribute("placeholder", "Enter recipient account number")).setValue(recipientAcc.getAccountNumber());
-
-        double amount = RandomData.getRandomAmount(0.01, MAX_DEPOSIT_AMOUNT);
-        $(Selectors.byAttribute("placeholder", "Enter amount")).setValue(String.valueOf(amount));
-
-        $("#confirmCheck").click();
-        $(Selectors.byTagAndText("button", "🚀 Send Transfer")).click();
-
-        Alert alert = switchTo().alert();
-        assertEquals("❌ Error: Invalid transfer: insufficient funds or invalid accounts", alert.getText());
-        alert.accept();
-
-        GetUserProfileResponse profile = new CrudRequester(
-                RequestSpecs.authAsUser(user.getUsername(), user.getPassword()),
-                Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
-                .get().extract().as(GetUserProfileResponse.class);
-
-        double senderBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == account.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
-
-        double recipientBalance = profile.getAccounts().stream()
-                .filter(acc -> acc.getId() == recipientAcc.getId())
-                .findFirst()
-                .orElseThrow()
-                .getBalance();
-
-        assertThat(profile.getAccounts().getFirst().getBalance()).isZero();
-        assertThat(profile.getAccounts().get(1).getBalance()).isZero();
+        assertThat(senderBalance).isZero();
+        assertThat(recipientBalance).isZero();
     }
 }

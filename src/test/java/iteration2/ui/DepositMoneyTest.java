@@ -1,192 +1,75 @@
 package iteration2.ui;
 
-import api.Specs.RequestSpecs;
-import api.Specs.ResponseSpecs;
-import com.codeborne.selenide.*;
+import api.requests.steps.UserSteps;
 import api.generators.RandomData;
 import api.models.CreateAccountResponse;
 import api.models.CreateUserRequest;
-import api.models.GetUserProfileResponse;
-import api.models.LoginUserRequest;
-import org.junit.jupiter.api.BeforeAll;
+import iteration1.ui.BaseUiTest;
 import org.junit.jupiter.api.Test;
-import org.openqa.selenium.Alert;
-import api.requests.skeleton.Endpoint;
-import api.requests.skeleton.requesters.CrudRequester;
 import api.requests.steps.AdminSteps;
-import java.util.Map;
-import static com.codeborne.selenide.Selenide.*;
+import ui.pagase.BankAlert;
+import ui.pagase.DepositMoney;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class DepositMoneyTest {
-    @BeforeAll
-    public static void setupSelenoid(){
-        Configuration.remote = "http://localhost:4444/wd/hub";
-        Configuration.baseUrl = "http://192.168.0.43:3000";
-        Configuration.browser = "chrome";
-        Configuration.browserSize = "1920x1080";
+public class DepositMoneyTest extends BaseUiTest {
 
-        Configuration.browserCapabilities.setCapability("selenoid:options", Map.of("enableVNC", true,
-                "enableLog", true));
-    }
     @Test
     public void depositMoneyWithValidAmountTest(){
-        CreateUserRequest createUserRequest = AdminSteps.createUser();
+        CreateUserRequest user = AdminSteps.createUser();
 
-        String account = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post()
-                .extract()
-                .as(CreateAccountResponse.class)
-                .getAccountNumber();
+        authAsUser(user);
 
-        String userAuthHeader =  new CrudRequester(
-                RequestSpecs.unauthSpec(),
-                Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder().username(createUserRequest.getUsername()).password(createUserRequest.getPassword()).build())
-                .extract()
-                .header("Authorization");
-
-        Selenide.open("/");
-
-        executeJavaScript("localStorage.setItem('authToken', arguments[0])", userAuthHeader);
-
-        Selenide.open("/dashboard");
-
-        $(Selectors.byText("💰 Deposit Money")).click();
-
-        $(Selectors.byText(account)).click();
+        UserSteps userSteps = new UserSteps(
+                user.getUsername(),
+                user.getPassword());
+        CreateAccountResponse account = userSteps.createAccount();
 
         double amount = RandomData.getValidDepositAmount();
+        new DepositMoney().open().depositMoney(account.getAccountNumber(), amount)
+                        .checkAlertMessageAndAccept(String.format(BankAlert.SUCCESSFULLY_DEPOSITED.getMessage(),
+                                amount,
+                                account.getAccountNumber()));
 
-        $(Selectors.byAttribute("placeholder","Enter amount")).setValue(String.valueOf(amount));
-
-        $(Selectors.byText("💵 Deposit")).click();
-
-        Alert alert = switchTo().alert();
-
-        assertEquals("✅ Successfully deposited $" + amount + " to account " + account + "!", alert.getText());
-        alert.accept();
-
-        Selenide.open("/transfer");
-
-        $(Selectors.byText("🔁 Transfer Again")).click();
-
-        double actualBalance = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
-                .get()
-                .extract()
-                .as(GetUserProfileResponse.class)
-                .getAccounts().getFirst().getBalance();
-
+        double actualBalance = userSteps.getBalance(account.getAccountNumber());
         assertThat(actualBalance).isEqualTo(amount);
     }
 
     @Test
     public void depositMoneyWithinSelectedAccount(){
-        CreateUserRequest createUserRequest = AdminSteps.createUser();
+        CreateUserRequest user = AdminSteps.createUser();
 
-        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post();
+        authAsUser(user);
 
-        String userAuthHeader =  new CrudRequester(
-                RequestSpecs.unauthSpec(),
-                Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder().username(createUserRequest.getUsername()).password(createUserRequest.getPassword()).build())
-                .extract()
-                .header("Authorization");
-
-        Selenide.open("/");
-
-        executeJavaScript("localStorage.setItem('authToken', arguments[0])", userAuthHeader);
-
-        Selenide.open("/dashboard");
-
-        $(Selectors.byText("💰 Deposit Money")).click();
+        UserSteps userSteps = new UserSteps(
+                user.getUsername(),
+                user.getPassword());
+        CreateAccountResponse account = userSteps.createAccount();
 
         double amount = RandomData.getValidDepositAmount();
+        new DepositMoney().open().depositMoney(amount)
+                .checkAlertMessageAndAccept(BankAlert.PLEASE_SELECT_AN_ACCOUNT.getMessage());
 
-        $(Selectors.byAttribute("placeholder","Enter amount")).setValue(String.valueOf(amount));
-
-        $(Selectors.byText("💵 Deposit")).click();
-
-        Alert alert = switchTo().alert();
-
-        assertEquals("❌ Please select an account.", alert.getText());
-        alert.accept();
-
-        Selenide.open("/transfer");
-
-        $(Selectors.byText("🔁 Transfer Again")).click();
-
-        ElementsCollection allUsersTransactions = $(Selectors.byText("Matching Transactions")).parent().findAll("li");
-        allUsersTransactions.findBy(Condition.text("DEPOSIT - $" + String.valueOf(amount))).shouldNotBe(Condition.visible);
-
-        double actualBalance = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
-                .get()
-                .extract()
-                .as(GetUserProfileResponse.class)
-                .getAccounts().getFirst().getBalance();
-
+        double actualBalance = userSteps.getBalance(account.getAccountNumber());
         assertThat(actualBalance).isZero();
     }
 
     @Test
     public void depositMoneyWithInvalidAmountTest(){
-        CreateUserRequest createUserRequest = AdminSteps.createUser();
+        CreateUserRequest user = AdminSteps.createUser();
 
-        String account = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post()
-                .extract()
-                .as(CreateAccountResponse.class)
-                .getAccountNumber();
+        authAsUser(user);
 
-        new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()),Endpoint.ACCOUNTS, ResponseSpecs.entityWasCreated())
-                .post();
-
-        String userAuthHeader =  new CrudRequester(
-                RequestSpecs.unauthSpec(),
-                Endpoint.LOGIN,
-                ResponseSpecs.requestReturnsOk())
-                .post(LoginUserRequest.builder().username(createUserRequest.getUsername()).password(createUserRequest.getPassword()).build())
-                .extract()
-                .header("Authorization");
-
-        Selenide.open("/");
-
-        executeJavaScript("localStorage.setItem('authToken', arguments[0])", userAuthHeader);
-
-        Selenide.open("/dashboard");
-
-        $(Selectors.byText("💰 Deposit Money")).click();
-
-        $(Selectors.byText(account)).click();
+        UserSteps userSteps = new UserSteps(
+                user.getUsername(),
+                user.getPassword());
+        CreateAccountResponse account = userSteps.createAccount();
 
         double amount = RandomData.getInvalidDepositAmount();
 
-        $(Selectors.byAttribute("placeholder","Enter amount")).setValue(String.valueOf(amount));
+        new DepositMoney().open().depositMoney(account.getAccountNumber(),amount)
+                .checkAlertMessageAndAccept(BankAlert.PLEASE_DEPOSIT_LESS_OR_EQUALS_TO_5000.getMessage());
 
-        $(Selectors.byText("💵 Deposit")).click();
-
-        Alert alert = switchTo().alert();
-
-        assertEquals("❌ Please deposit less or equal to 5000$.", alert.getText());
-        alert.accept();
-
-        Selenide.open("/transfer");
-
-        $(Selectors.byText("🔁 Transfer Again")).click();
-
-        ElementsCollection allUsersTransactions = $(Selectors.byText("Matching Transactions")).parent().findAll("li");
-        allUsersTransactions.shouldBe(CollectionCondition.empty);
-
-        double actualBalance = new CrudRequester(RequestSpecs.authAsUser(createUserRequest.getUsername(), createUserRequest.getPassword()), Endpoint.CUSTOMER_PROFILE, ResponseSpecs.requestReturnsOk())
-                .get()
-                .extract()
-                .as(GetUserProfileResponse.class)
-                .getAccounts().getFirst().getBalance();
-
+        double actualBalance = userSteps.getBalance(account.getAccountNumber());
         assertThat(actualBalance).isZero();
     }
 }
